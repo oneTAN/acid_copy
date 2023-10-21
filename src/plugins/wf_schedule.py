@@ -1,7 +1,6 @@
 import json
-
 # import os
-# import math
+import math
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 # import time
 import datetime
@@ -79,7 +78,9 @@ boss_battle_multi_pickup_event = readFileJson(
 # 每次pick up的详细安排
 boss_battle_multi_pickup_event_schedule = readFileJson(
     r"data/wf_schedule/boss_battle_multi_pickup_event_schedule.json")
-
+# boss列表
+boss_battle_quest = readFileJson(
+    r"data/wf_schedule/boss_battle_quest.json")
 # 读取当前时间
 current_time = datetime.datetime.now()
 
@@ -104,10 +105,10 @@ for item in boss_battle_multi_pickup_event:
 text = [f"{start_time.strftime('%Y年%m月%d日%H:%M')}~{end_time.strftime('%Y年%m月%d日%H:%M')}",
         "活动期间以协力战斗挑战特选对象领主",
         f"可获得的领主币、经验值和玛纳将变为{multiplier}倍!"]
-duration = (end_time-start_time).days + 2  # 活动持续时间
 
-background_layer = Image.new(
-    'RGBA', (1170, 470 + unit_day_height * duration), (255, 255, 255, 0))
+duration = (end_time - start_time).days + 2  # 活动持续时间
+
+background_layer = Image.new('RGBA', (1170, 470 + unit_day_height * duration), (255, 255, 255, 0))
 
 head_img = Image.open(r'data/wf_schedule/sprite_sheet/head.png')
 body_img = Image.open(r'data/wf_schedule/sprite_sheet/body.png')
@@ -118,26 +119,23 @@ background_layer.paste(head_img, (0, 0),)
 background_layer.paste(body_img, (0, 256),)
 background_layer.paste(foot_img, (0, 214 + unit_day_height * duration))
 
-draw = ImageDraw.Draw(background_layer)
+draw_bg = ImageDraw.Draw(background_layer)
 ft = ImageFont.truetype(r"data/wf_schedule/SY.ttf", 37)
 ft2 = ImageFont.truetype(r"data/wf_schedule/SY.ttf", 33)
-draw.text((96, 256), text[0], font=ft, fill="#525252")
-draw.text((96, 320), text[1], font=ft, fill="#525252")
-draw.text((96, 368), text[2], font=ft, fill="#525252")
-draw.text((291, 320), text[1][5:9], font=ft, fill="#FF9933")
-draw.text((252, 368), text[2][4:-2], font=ft, fill="#FF9933")
+draw_bg.text((96, 256), text[0], font=ft, fill="#525252")
+draw_bg.text((96, 320), text[1], font=ft, fill="#525252")
+draw_bg.text((96, 368), text[2], font=ft, fill="#525252")
+draw_bg.text((291, 320), text[1][5:9], font=ft, fill="#FF9933")
+draw_bg.text((252, 368), text[2][4:-2], font=ft, fill="#FF9933")
 
 
-line_img = Image.open(
-    r"data/wf_schedule/sprite_sheet/line.png").convert('RGBA')
+line_img = Image.open(r"data/wf_schedule/sprite_sheet/line.png").convert('RGBA')
 drawDate = start_time
 
 for i in range(0, duration + 1):
     if i < duration - 1:
-        background_layer.paste(
-            line_img, (57, 570 + unit_day_height*i), line_img)
-    draw.text((56, 466 + unit_day_height*i),
-              drawDate.strftime('%m月%d日'), font=ft2, fill="#525252")
+        background_layer.paste(line_img, (57, 570 + unit_day_height*i), line_img)
+    draw_bg.text((56, 466 + unit_day_height*i), drawDate.strftime('%m月%d日'), font=ft2, fill="#525252")
     drawDate += datetime.timedelta(days=1)
 
 decoration_white_img = Image.open(
@@ -146,12 +144,22 @@ decoration_purple_img = Image.open(
     r'data/wf_schedule/sprite_sheet/bottom_right_decoration_purple.png').convert('RGBA')
 decoration_red_img = Image.open(
     r'data/wf_schedule/sprite_sheet/bottom_right_decoration_red.png').convert('RGBA')
+line_white = Image.open(
+    r'data/wf_schedule/sprite_sheet/line_white.png').convert('RGBA')
+line_purple = Image.open(
+    r'data/wf_schedule/sprite_sheet/line_purple.png').convert('RGBA')
+line_red = Image.open(
+    r'data/wf_schedule/sprite_sheet/line_red.png').convert('RGBA')
 
 blank_layer = Image.new('RGBA', background_layer.size, (255, 255, 255, 0))
 foreground_layer = blank_layer.copy()
 decoration_layer = blank_layer.copy()
-draw = ImageDraw.Draw(foreground_layer)
-
+line_layer = blank_layer.copy()
+boss_mask_layer = blank_layer.copy()
+boss_layer = blank_layer.copy()
+draw_foreground = ImageDraw.Draw(foreground_layer)
+draw_boss_mask = ImageDraw.Draw(boss_mask_layer)
+whole_boss_img = Image.new('RGBA', (8, 8), (255, 255, 255, 0))
 for item in boss_battle_multi_pickup_event_schedule[pu_number]:
     # boss的编号, 这个有用, 要拿去提审thumbnail
     boss_number = boss_battle_multi_pickup_event_schedule[pu_number][item][1]
@@ -161,38 +169,66 @@ for item in boss_battle_multi_pickup_event_schedule[pu_number]:
         boss_battle_multi_pickup_event_schedule[pu_number][item][6], '%Y-%m-%d %H:%M:%S')
     end_time_son = datetime.datetime.strptime(
         boss_battle_multi_pickup_event_schedule[pu_number][item][7], '%Y-%m-%d %H:%M:%S')
+    # 提审thumbnail
+    boss_img_filename = boss_battle_quest["1"][boss_number]["1"][3].rsplit('/', 1)[-1]
+    boss_img = Image.open(f"data/wf_schedule/sprite_sheet/thumbnail/{boss_img_filename}.png")
 
+    # 将当前时间的pickup加紫
     if (current_time >= start_time_son) and (current_time <= end_time_son):
         decoration_img = decoration_purple_img
+        line_img = line_purple
         fill_color = '#6E196F'
         outline_color = '#841E85'
     else:
         decoration_img = decoration_white_img
+        line_img = line_white
         fill_color = '#FAFAFA'
         outline_color = '#FFFFFF'
+    # 如果是全程up的内容
+    if (start_time_son == start_time) and (end_time_son == end_time):
+        whole_boss_img = boss_img.copy()
+    else:
+        x1 = 217
+        y1 = 500 + int(int((start_time_son - start_time).total_seconds())/(24*60*60/unit_day_height))
+        x2 = 1104
+        y2 = 494 + int(int((end_time_son - start_time).total_seconds())/(24*60*60/unit_day_height))
 
-    # 不知道怎么筛选, 干脆固定不取第一个好了
-    # 不对啊那普通的pick up怎么办
-    if (item != "1"):
-        draw.rounded_rectangle((218, 498 + int(int((start_time_son - start_time).total_seconds())/(24*60*60/unit_day_height)), 1103, 490 + int(
-            int((end_time_son - start_time).total_seconds())/(24*60*60/unit_day_height))), radius=24, fill=fill_color, outline=outline_color, width=5)
-        decoration_layer.paste(decoration_img, (836, 333 + int(int((end_time_son -
-                               start_time).total_seconds())/(24*60*60/unit_day_height))), decoration_img)
+        # 画每个小圆角矩形、角落魔法阵、中间横线
+        draw_foreground.rounded_rectangle((x1, y1, x2, y2), radius=24, fill=fill_color, outline=outline_color, width=5)
+        decoration_layer.paste(decoration_img, (837, y2-157), decoration_img)
+        line_layer.paste(line_img, (569, 7 + int((y1+y2)/2)), )
+
+        # 左侧boss框蒙版
+        draw_boss_mask.rounded_rectangle((x1+8, y1+8, x1+8+159, y2-8), radius=16, fill=fill_color)
+        whole_boss_img_copy = whole_boss_img.crop((0, math.ceil(0.5*(304+y1-y2)), 160, math.ceil(0.5*(274-y1+y2))))
+        boss_layer.paste(whole_boss_img_copy, (x1+8, y1+8), whole_boss_img_copy)
+        # 右侧boss框蒙版
+        draw_boss_mask.rounded_rectangle((x1+8+168, y1+8, x1+8+159+168, y2-8), radius=16, fill=fill_color)
+        boss_img_copy = boss_img.crop((0, math.ceil(0.5*(304+y1-y2)), 160, math.ceil(0.5*(274-y1+y2))))
+        boss_layer.paste(boss_img_copy, (x1+8+168, y1+8), boss_img_copy)
+        start_time_son_last = start_time_son
+        end_time_son_last = end_time_son
 
 blank_layer.paste(decoration_layer, (0, 0), foreground_layer)
 decoration_layer = blank_layer.copy()
 blank_layer = Image.new('RGBA', background_layer.size, (255, 255, 255, 0))
 
-shadow_layer = Image.new('RGB', background_layer.size, (200, 200, 200))
+shadow_layer = Image.new('RGB', background_layer.size, '#000000')
 blank_layer.paste(shadow_layer, (0, 0), foreground_layer)
 shadow_layer = blank_layer.copy()
 blank_layer = Image.new('RGBA', background_layer.size, (255, 255, 255, 0))
-shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(6))
+shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(4))
 
 background_layer.paste(shadow_layer, (0, 0), shadow_layer)
 background_layer.paste(foreground_layer, (0, 0), foreground_layer)
 background_layer.paste(decoration_layer, (0, 0), decoration_layer)
+background_layer.paste(line_layer, (0, 0), line_layer)
+background_layer.paste(boss_layer, (0, 0), boss_mask_layer)
 
 background_layer = background_layer.convert('RGB')
 background_layer.save(r"data/wf_schedule/test2.png")
+shadow_layer.save(r"data/wf_schedule/shadow_layer.png")
+foreground_layer.save(r"data/wf_schedule/foreground_layer.png")
+boss_mask_layer.save(r"data/wf_schedule/boss_mask_layer.png")
+boss_layer.save(r"data/wf_schedule/boss_layer.png")
 background_layer.show()
