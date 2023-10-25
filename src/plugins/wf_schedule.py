@@ -1,6 +1,5 @@
 import json
 # import os
-import math
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 # import time
 import datetime
@@ -12,20 +11,6 @@ def readFileJson(file_name):
     with open(file_name, "r", encoding="UTF-8") as f:
         data = json.load(f)
     return data
-
-
-def spliceLayer(layer1: Image, layer2: Image, box: tuple[int, int, int, int]) -> Image:
-    img = Image.new('RGBA', layer1.size, (255, 255, 255, 0))
-    img.paste(layer1, (0, 0), layer1)
-    img.paste(layer2, box, layer2)
-    return img
-
-
-def spliceLayerT(layer1: Image, layer2: Image, box: tuple[int, int, int, int]) -> Image:
-    img = Image.new('RGBA', layer2.size, (255, 255, 255, 0))
-    img.paste(layer1, box, layer1)
-    img.paste(layer2, (0, 0), layer2)
-    return img
 
 
 def nineSliceUi(img: Image, box: tuple[int, int, int, int], size: tuple[int, int]) -> Image:
@@ -98,15 +83,21 @@ for item in boss_battle_multi_pickup_event:
         boss_battle_multi_pickup_event[item][7], '%Y-%m-%d %H:%M:%S')
 
     # 找到当前时间对应的pick up内容
-    if (current_time >= start_time) and (current_time <= end_time):
+    # if (current_time >= start_time) and (current_time <= end_time):
+    #     pu_number = item
+    #     break
+    if item == "16":
         pu_number = item
         break
 
-text = [f"{start_time.strftime('%Y年%m月%d日%H:%M')}~{end_time.strftime('%Y年%m月%d日%H:%M')}",
-        "活动期间以协力战斗挑战特选对象领主",
-        f"可获得的领主币、经验值和玛纳将变为{multiplier}倍!"]
 
-duration = (end_time - start_time).days + 2  # 活动持续时间
+description_text = [
+    f"{start_time.strftime('%Y年%m月%d日%H:%M')}~{end_time.strftime('%Y年%m月%d日%H:%M')}",
+    "活动期间以协力战斗挑战特选对象领主",
+    f"可获得的领主币、经验值和玛纳将变为{multiplier}倍!"]
+
+duration = (end_time.date() - start_time.date()).days + 1  # 活动持续时间
+print(duration)
 
 background_layer = Image.new('RGBA', (1170, 470 + unit_day_height * duration), (255, 255, 255, 0))
 
@@ -119,23 +110,25 @@ background_layer.paste(head_img, (0, 0),)
 background_layer.paste(body_img, (0, 256),)
 background_layer.paste(foot_img, (0, 214 + unit_day_height * duration))
 
-draw_bg = ImageDraw.Draw(background_layer)
-ft = ImageFont.truetype(r"data/wf_schedule/SY.ttf", 37)
-ft2 = ImageFont.truetype(r"data/wf_schedule/SY.ttf", 33)
-draw_bg.text((96, 256), text[0], font=ft, fill="#525252")
-draw_bg.text((96, 320), text[1], font=ft, fill="#525252")
-draw_bg.text((96, 368), text[2], font=ft, fill="#525252")
-draw_bg.text((291, 320), text[1][5:9], font=ft, fill="#FF9933")
-draw_bg.text((252, 368), text[2][4:-2], font=ft, fill="#FF9933")
+draw_background = ImageDraw.Draw(background_layer)
+ft37 = ImageFont.truetype(r"data/wf_schedule/SY.ttf", 37)
+ft33 = ImageFont.truetype(r"data/wf_schedule/SY.ttf", 33)
+gray_color = "#525252"
+orange_color = "#FF9933"
+draw_background.text((96, 256), description_text[0], font=ft37, fill=gray_color)
+draw_background.text((96, 320), description_text[1], font=ft37, fill=gray_color)
+draw_background.text((96, 368), description_text[2], font=ft37, fill=gray_color)
+draw_background.text((291, 320), description_text[1][5:9], font=ft37, fill=orange_color)
+draw_background.text((252, 368), description_text[2][4:-1], font=ft37, fill=orange_color)
 
 
 line_img = Image.open(r"data/wf_schedule/sprite_sheet/line.png").convert('RGBA')
 drawDate = start_time
 
-for i in range(0, duration + 1):
+for i in range(0, duration):
     if i < duration - 1:
         background_layer.paste(line_img, (57, 570 + unit_day_height*i), line_img)
-    draw_bg.text((56, 466 + unit_day_height*i), drawDate.strftime('%m月%d日'), font=ft2, fill="#525252")
+    draw_background.text((56, 466 + unit_day_height*i), drawDate.strftime('%m月%d日'), font=ft33, fill=gray_color)
     drawDate += datetime.timedelta(days=1)
 
 decoration_white_img = Image.open(
@@ -157,11 +150,16 @@ decoration_layer = blank_layer.copy()
 line_layer = blank_layer.copy()
 boss_mask_layer = blank_layer.copy()
 boss_layer = blank_layer.copy()
+text_layer = blank_layer.copy()
 draw_foreground = ImageDraw.Draw(foreground_layer)
 draw_boss_mask = ImageDraw.Draw(boss_mask_layer)
+draw_text = ImageDraw.Draw(text_layer)
 whole_boss_img = Image.new('RGBA', (8, 8), (255, 255, 255, 0))
+whole_boss_name = ""
+count_leftrigt = 0
+step_length = 1
 for item in boss_battle_multi_pickup_event_schedule[pu_number]:
-    # boss的编号, 这个有用, 要拿去提审thumbnail
+    # boss的编号, 用于提审thumbnail
     boss_number = boss_battle_multi_pickup_event_schedule[pu_number][item][1]
 
     # 同上, 每个小方块对应的起止时间, 从str转换成datetime
@@ -170,8 +168,9 @@ for item in boss_battle_multi_pickup_event_schedule[pu_number]:
     end_time_son = datetime.datetime.strptime(
         boss_battle_multi_pickup_event_schedule[pu_number][item][7], '%Y-%m-%d %H:%M:%S')
     # 提审thumbnail
-    boss_img_filename = boss_battle_quest["1"][boss_number]["1"][3].rsplit('/', 1)[-1]
-    boss_img = Image.open(f"data/wf_schedule/sprite_sheet/thumbnail/{boss_img_filename}.png")
+    boss_name = boss_battle_quest["1"][boss_number]["1"][2].split()[0]
+    boss_img_filename = boss_battle_quest["1"][boss_number]["1"][3]
+    boss_img = Image.open(f"data/{boss_img_filename}.png")
 
     # 将当前时间的pickup加紫
     if (current_time >= start_time_son) and (current_time <= end_time_son):
@@ -179,40 +178,49 @@ for item in boss_battle_multi_pickup_event_schedule[pu_number]:
         line_img = line_purple
         fill_color = '#6E196F'
         outline_color = '#841E85'
+        text_color = '#FFFFFF'
     else:
         decoration_img = decoration_white_img
         line_img = line_white
         fill_color = '#FAFAFA'
         outline_color = '#FFFFFF'
+        text_color = gray_color
     # 如果是全程up的内容
     if (start_time_son == start_time) and (end_time_son == end_time):
         whole_boss_img = boss_img.copy()
+        whole_boss_name = boss_name
+        count_leftrigt += 1
+        step_length = 2
     else:
-        x1 = 217
-        y1 = 500 + int(int((start_time_son - start_time).total_seconds())/(24*60*60/unit_day_height))
-        x2 = 1104
-        y2 = 494 + int(int((end_time_son - start_time).total_seconds())/(24*60*60/unit_day_height))
+        y1 = int(int((start_time_son - start_time).total_seconds())/(24*60*60/unit_day_height))
+        y2 = int(int((end_time_son - start_time).total_seconds())/(24*60*60/unit_day_height))
 
         # 画每个小圆角矩形、角落魔法阵、中间横线
-        draw_foreground.rounded_rectangle((x1, y1, x2, y2), radius=24, fill=fill_color, outline=outline_color, width=5)
-        decoration_layer.paste(decoration_img, (837, y2-157), decoration_img)
-        line_layer.paste(line_img, (569, 7 + int((y1+y2)/2)), )
+        draw_foreground.rounded_rectangle((217, 500+y1, 1104, 500+y2-6), radius=24, fill=fill_color, outline=outline_color, width=5)
+        if (y2-6-y1) < 158:
+            decoration_img = decoration_img.crop((0, 158-(y2-5-y1), 268, 158))
+            decoration_layer.paste(decoration_img, (217+620, 500+y1), decoration_img)
+        else:
+            decoration_layer.paste(decoration_img, (217+620, 500+y2-6-157), decoration_img)
+        # ↑根据decoration_img的尺寸粘贴, 如何让元组相加减?或者以size.img[0]的方式?
+        line_layer.paste(line_img, (569, 500 + int((y1+y2)/2)-3), )
+        draw_boss_mask.rounded_rectangle((217+8, 500+y1+8, 217+8+159, 500+y2-6-8), radius=16, fill=fill_color)
+        whole_boss_img_copy = whole_boss_img.crop((0, int(0.5*(304+y1-y2)), 160, int(0.5*(274-y1+y2))))
+        boss_layer.paste(whole_boss_img_copy, (217+8, 500+y1+8), whole_boss_img_copy)
+        draw_text.text((620, 500 + int((y1+y2)/2)-3-54), whole_boss_name, font=ft37, fill=text_color)
+        if count_leftrigt % 2 == 0:
+            boss_img_copy = boss_img.crop((0, int(0.5*(304+y1-y2)), 160, int(0.5*(274-y1+y2))))
+            boss_layer.paste(boss_img_copy, (217+8, 500+y1+8), boss_img_copy)
+        else:
+            draw_boss_mask.rounded_rectangle((217+8+168, 500+y1+8, 217+8+159+168, 500+y2-6-8), radius=16, fill=fill_color)
+            boss_img_copy = boss_img.crop((0, int(0.5*(304+y1-y2)), 160, int(0.5*(274-y1+y2))))
+            boss_layer.paste(boss_img_copy, (217+8+168, 500+y1+8), boss_img_copy)
 
-        # 左侧boss框蒙版
-        draw_boss_mask.rounded_rectangle((x1+8, y1+8, x1+8+159, y2-8), radius=16, fill=fill_color)
-        whole_boss_img_copy = whole_boss_img.crop((0, math.ceil(0.5*(304+y1-y2)), 160, math.ceil(0.5*(274-y1+y2))))
-        boss_layer.paste(whole_boss_img_copy, (x1+8, y1+8), whole_boss_img_copy)
-        # 右侧boss框蒙版
-        draw_boss_mask.rounded_rectangle((x1+8+168, y1+8, x1+8+159+168, y2-8), radius=16, fill=fill_color)
-        boss_img_copy = boss_img.crop((0, math.ceil(0.5*(304+y1-y2)), 160, math.ceil(0.5*(274-y1+y2))))
-        boss_layer.paste(boss_img_copy, (x1+8+168, y1+8), boss_img_copy)
-        start_time_son_last = start_time_son
-        end_time_son_last = end_time_son
+    count_leftrigt += step_length
 
 blank_layer.paste(decoration_layer, (0, 0), foreground_layer)
 decoration_layer = blank_layer.copy()
 blank_layer = Image.new('RGBA', background_layer.size, (255, 255, 255, 0))
-
 shadow_layer = Image.new('RGB', background_layer.size, '#000000')
 blank_layer.paste(shadow_layer, (0, 0), foreground_layer)
 shadow_layer = blank_layer.copy()
@@ -224,6 +232,7 @@ background_layer.paste(foreground_layer, (0, 0), foreground_layer)
 background_layer.paste(decoration_layer, (0, 0), decoration_layer)
 background_layer.paste(line_layer, (0, 0), line_layer)
 background_layer.paste(boss_layer, (0, 0), boss_mask_layer)
+background_layer.paste(text_layer, (0, 0), text_layer)
 
 background_layer = background_layer.convert('RGB')
 background_layer.save(r"data/wf_schedule/test2.png")
@@ -231,4 +240,5 @@ shadow_layer.save(r"data/wf_schedule/shadow_layer.png")
 foreground_layer.save(r"data/wf_schedule/foreground_layer.png")
 boss_mask_layer.save(r"data/wf_schedule/boss_mask_layer.png")
 boss_layer.save(r"data/wf_schedule/boss_layer.png")
+text_layer.save(r"data/wf_schedule/text_layer.png")
 background_layer.show()
