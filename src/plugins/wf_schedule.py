@@ -112,6 +112,7 @@ background_layer.paste(foot_img, (0, 214 + unit_day_height * duration))
 
 draw_background = ImageDraw.Draw(background_layer)
 ft37 = ImageFont.truetype(r"data/wf_schedule/SY.ttf", 37)
+ft34 = ImageFont.truetype(r"data/wf_schedule/SY.ttf", 34)
 ft33 = ImageFont.truetype(r"data/wf_schedule/SY.ttf", 33)
 gray_color = "#525252"
 orange_color = "#FF9933"
@@ -124,13 +125,15 @@ draw_background.text((252, 368), description_text[2][4:-1], font=ft37, fill=oran
 
 line_img = Image.open(r"data/wf_schedule/sprite_sheet/line.png").convert('RGBA')
 drawDate = start_time
-
+# 画日期和背景横线
 for i in range(0, duration):
     if i < duration - 1:
         background_layer.paste(line_img, (57, 570 + unit_day_height*i), line_img)
     draw_background.text((56, 466 + unit_day_height*i), drawDate.strftime('%m月%d日'), font=ft33, fill=gray_color)
     drawDate += datetime.timedelta(days=1)
 
+
+# 准备不同颜色的魔法阵和前景横线
 decoration_white_img = Image.open(
     r'data/wf_schedule/sprite_sheet/bottom_right_decoration_white.png').convert('RGBA')
 decoration_purple_img = Image.open(
@@ -156,6 +159,7 @@ draw_boss_mask = ImageDraw.Draw(boss_mask_layer)
 draw_text = ImageDraw.Draw(text_layer)
 whole_boss_img = Image.new('RGBA', (8, 8), (255, 255, 255, 0))
 whole_boss_name = ""
+# 通过奇偶判断贴左边还是右边
 count_leftrigt = 0
 step_length = 1
 for item in boss_battle_multi_pickup_event_schedule[pu_number]:
@@ -203,15 +207,18 @@ for item in boss_battle_multi_pickup_event_schedule[pu_number]:
         else:
             decoration_layer.paste(decoration_img, (217+620, 500+y2-6-157), decoration_img)
         # ↑根据decoration_img的尺寸粘贴, 如何让元组相加减?或者以size.img[0]的方式?
-        line_layer.paste(line_img, (569, 500 + int((y1+y2)/2)-3), )
-        draw_boss_mask.rounded_rectangle((217+8, 500+y1+8, 217+8+159, 500+y2-6-8), radius=16, fill=fill_color)
-        whole_boss_img_copy = whole_boss_img.crop((0, int(0.5*(304+y1-y2)), 160, int(0.5*(274-y1+y2))))
-        boss_layer.paste(whole_boss_img_copy, (217+8, 500+y1+8), whole_boss_img_copy)
-        draw_text.text((620, 500 + int((y1+y2)/2)-3-54), whole_boss_name, font=ft37, fill=text_color)
+        line_layer.paste(line_img, (569, 500+int((y1+y2)/2)+4), line_img)
+        # 偶数贴左边
         if count_leftrigt % 2 == 0:
             boss_img_copy = boss_img.crop((0, int(0.5*(304+y1-y2)), 160, int(0.5*(274-y1+y2))))
             boss_layer.paste(boss_img_copy, (217+8, 500+y1+8), boss_img_copy)
+        # 奇数贴右边
         else:
+            draw_boss_mask.rounded_rectangle((217+8, 500+y1+8, 217+8+159, 500+y2-6-8), radius=16, fill=fill_color)
+            whole_boss_img_copy = whole_boss_img.crop((0, int(0.5*(304+y1-y2)), 160, int(0.5*(274-y1+y2))))
+            boss_layer.paste(whole_boss_img_copy, (217+8, 500+y1+8), whole_boss_img_copy)
+            draw_text.text((576, 500+int((y1+y2)/2)-54), whole_boss_name, font=ft34, fill=text_color)
+
             draw_boss_mask.rounded_rectangle((217+8+168, 500+y1+8, 217+8+159+168, 500+y2-6-8), radius=16, fill=fill_color)
             boss_img_copy = boss_img.crop((0, int(0.5*(304+y1-y2)), 160, int(0.5*(274-y1+y2))))
             boss_layer.paste(boss_img_copy, (217+8+168, 500+y1+8), boss_img_copy)
@@ -235,10 +242,10 @@ background_layer.paste(boss_layer, (0, 0), boss_mask_layer)
 background_layer.paste(text_layer, (0, 0), text_layer)
 
 background_layer = background_layer.convert('RGB')
-background_layer.save(r"data/wf_schedule/test2.png")
-shadow_layer.save(r"data/wf_schedule/shadow_layer.png")
-foreground_layer.save(r"data/wf_schedule/foreground_layer.png")
-boss_mask_layer.save(r"data/wf_schedule/boss_mask_layer.png")
-boss_layer.save(r"data/wf_schedule/boss_layer.png")
-text_layer.save(r"data/wf_schedule/text_layer.png")
+background_layer.save(f"data/wf_schedule/{code_name}.png")
+shadow_layer.save(r"data/wf_schedule/layer/shadow_layer.png")
+foreground_layer.save(r"data/wf_schedule/layer/foreground_layer.png")
+boss_mask_layer.save(r"data/wf_schedule/layer/boss_mask_layer.png")
+boss_layer.save(r"data/wf_schedule/layer/boss_layer.png")
+text_layer.save(r"data/wf_schedule/layer/text_layer.png")
 background_layer.show()
